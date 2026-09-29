@@ -1,0 +1,31 @@
+@page "/apply"
+
+<PageTitle>Apply for a loan</PageTitle>
+
+<h1>Apply for a loan</h1>
+
+<div class="alert alert-secondary">Step 1: the application form goes here.</div>
+
+@*
+TODO(step 1): the application form.
+
+ - Pick a render mode. With no @rendermode this page is static server-rendered: an EditForm
+   still works (it posts back; use [SupplyParameterFromForm] and give the form a FormName),
+   but @onclick handlers silently do nothing. With @rendermode InteractiveServer, events run
+   over a SignalR circuit and you get live validation as the user types.
+
+ - Form model (a class in this project, e.g. Components/Models/ApplicationForm.cs) with
+   DataAnnotations: [Required] name, [EmailAddress] email, [Range] amount 1 000–500 000,
+   term 6–120 months, income and expenses >= 0. Render <DataAnnotationsValidator /> and
+   <ValidationSummary /> inside the EditForm.
+
+ - On valid submit:
+     var application = LoanApplication.Submit(..., TimeProvider.GetUtcNow().UtcDateTime);
+     await Repository.InsertAsync(application);
+     Navigation.NavigateTo($"/applications/{application.Id}");
+   Inject ILoanApplicationRepository, TimeProvider and NavigationManager.
+
+ - In step 2 the end of that flow changes: after inserting, send ProcessApplication with
+   ICommandSender (session id = application id, message id = a SubmissionId generated when
+   the form is first rendered, so a double-click is caught by duplicate detection).
+*@

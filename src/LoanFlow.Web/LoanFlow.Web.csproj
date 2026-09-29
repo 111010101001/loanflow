@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <!-- Shared with LoanFlow.Worker, so one "dotnet user-secrets set" configures both apps. -->
+    <UserSecretsId>loanflow-dev</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LoanFlow.Core\LoanFlow.Core.csproj" />
+    <ProjectReference Include="..\LoanFlow.Infrastructure\LoanFlow.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

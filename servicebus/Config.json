@@ -1,0 +1,43 @@
+{
+  "UserConfig": {
+    "Namespaces": [
+      {
+        "Name": "sbemulatorns",
+        "Queues": [
+          {
+            "Name": "loan-applications",
+            "Properties": {
+              "RequiresSession": true,
+              "RequiresDuplicateDetection": true,
+              "DuplicateDetectionHistoryTimeWindow": "PT10M",
+              "MaxDeliveryCount": 5,
+              "LockDuration": "PT30S",
+              "DefaultMessageTimeToLive": "PT1H",
+              "DeadLetteringOnMessageExpiration": true,
+              "ForwardDeadLetteredMessagesTo": "",
+              "ForwardTo": ""
+            }
+          },
+          {
+            "Name": "offer-expiry",
+            "Properties": {
+              "RequiresSession": false,
+              "RequiresDuplicateDetection": false,
+              "DuplicateDetectionHistoryTimeWindow": "PT20S",
+              "MaxDeliveryCount": 5,
+              "LockDuration": "PT30S",
+              "DefaultMessageTimeToLive": "PT1H",
+              "DeadLetteringOnMessageExpiration": true,
+              "ForwardDeadLetteredMessagesTo": "",
+              "ForwardTo": ""
+            }
+          }
+        ],
+        "Topics": []
+      }
+    ],
+    "Logging": {
+      "Type": "File"
+    }
+  }
+}

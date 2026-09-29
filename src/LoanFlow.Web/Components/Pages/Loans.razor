@@ -1,0 +1,29 @@
+@page "/loans"
+
+<PageTitle>Loans</PageTitle>
+
+<h1>Loans</h1>
+
+<div class="alert alert-secondary">Step 4: loans and repayment schedules from SQL Server go here.</div>
+
+@*
+TODO(step 4): read the ledger with EF Core.
+
+ - Inject IDbContextFactory<LedgerDbContext> (not LedgerDbContext) and create a context per
+   operation: await using var db = await DbFactory.CreateDbContextAsync();
+   A scoped context in Blazor Server would live as long as the browser tab, and two quick
+   clicks would use it from two operations at once ("A second operation was started on this
+   context instance before a previous operation completed").
+
+ - List: db.Loans.AsNoTracking().OrderByDescending(l => l.OpenedAtUtc).Take(50).ToListAsync().
+   AsNoTracking: read-only pages don't need change tracking. Better still, project to a small
+   record with Select(...) so the installments aren't loaded for the list at all.
+
+ - Details page (/loans/{Id:guid}): the loan and its schedule. Installments are owned, so they
+   load with the loan; no Include needed.
+
+ - "Mark paid" button per installment (@rendermode InteractiveServer): new context, load the
+   loan (tracked), loan.RegisterPayment(number, now), SaveChangesAsync. Once RowVersion is
+   configured, open the same loan in two tabs and pay the same installment in both: catch
+   DbUpdateConcurrencyException in the second and tell the user to reload.
+*@

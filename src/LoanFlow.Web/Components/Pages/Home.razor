@@ -1,0 +1,20 @@
+@page "/"
+
+<PageTitle>LoanFlow</PageTitle>
+
+<h1>LoanFlow</h1>
+
+<p>
+    A small loan-application pipeline for learning Blazor, dependency injection,
+    Azure Service Bus and RabbitMQ, with MongoDB for applications and SQL Server
+    (through EF Core) for the loans that get paid out.
+</p>
+
+<ol>
+    <li>Open <NavLink href="status">Infrastructure status</NavLink>. MongoDB, Service Bus and RabbitMQ should be green; SQL Server stays yellow until step 4.</li>
+    <li>Follow the build plan in <code>README.md</code>. Every place you need to write code is marked <code>TODO(step N)</code>.</li>
+</ol>
+
+<p class="text-muted small">
+    Find them with <code>git grep -n "TODO(step 1)"</code>, or your IDE's TODO window.
+</p>

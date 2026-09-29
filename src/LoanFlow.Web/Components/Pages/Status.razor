@@ -1,0 +1,77 @@
+@page "/status"
+@using Microsoft.Extensions.Diagnostics.HealthChecks
+@attribute [StreamRendering]
+@inject HealthCheckService HealthChecks
+
+@* Static server rendering + streaming: the page is sent immediately with "Checking...",
+   then the results stream in when the checks finish. No interactivity (and no SignalR
+   circuit) needed, because nothing on this page reacts to clicks. *@
+
+<PageTitle>Infrastructure status</PageTitle>
+
+<h1>Infrastructure status</h1>
+
+<p class="text-muted">
+    Everything the app depends on. MongoDB, Service Bus and RabbitMQ should be green before you
+    start step 1. The SQL Server row stays yellow until step 4, when the ledger database gets
+    its first migration. Reload the page to check again.
+</p>
+
+@if (report is null)
+{
+    <p><em>Checking MongoDB, Service Bus, RabbitMQ and SQL Server...</em></p>
+}
+else
+{
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Dependency</th>
+                <th>Status</th>
+                <th>Details</th>
+                <th class="text-end">Time</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var (name, entry) in report.Entries)
+            {
+                <tr>
+                    <td>@name</td>
+                    <td><span class="badge @BadgeClass(entry.Status)">@entry.Status</span></td>
+                    <td>
+                        @entry.Description
+                        @if (entry.Exception is not null)
+                        {
+                            <div class="small text-danger mt-1">@entry.Exception.GetType().Name: @entry.Exception.Message</div>
+                        }
+                    </td>
+                    <td class="text-end">@entry.Duration.TotalMilliseconds.ToString("0") ms</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @if (report.Entries.Values.Any(e => e.Status == HealthStatus.Unhealthy))
+    {
+        <div class="alert alert-warning">
+            Something is down. Check <code>docker compose ps</code> for the containers, and that
+            <code>mongod</code> is running locally. The README has a troubleshooting list.
+        </div>
+    }
+}
+
+@code {
+    private HealthReport? report;
+
+    protected override async Task OnInitializedAsync()
+    {
+        report = await HealthChecks.CheckHealthAsync();
+    }
+
+    private static string BadgeClass(HealthStatus status) => status switch
+    {
+        HealthStatus.Healthy => "text-bg-success",
+        HealthStatus.Degraded => "text-bg-warning",
+        _ => "text-bg-danger",
+    };
+}

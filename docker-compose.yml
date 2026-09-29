@@ -1,0 +1,67 @@
+# Local infrastructure for LoanFlow. MongoDB is not here: it runs on your machine.
+#
+#   cp .env.example .env      # then edit it
+#   docker compose up -d
+#   docker compose ps         # all three should be "running"
+#
+# Ports on your machine:
+#   5672   Service Bus emulator (AMQP)
+#   5300   Service Bus emulator (management + http://localhost:5300/health)
+#   5673   RabbitMQ (AMQP). Not 5672: the emulator already has that port.
+#   15672  RabbitMQ management UI, http://localhost:15672 (guest / guest)
+#   14330  SQL Server. Not 1433, in case you have SQL Server installed locally.
+
+name: loanflow
+
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: loanflow-rabbitmq
+    # RabbitMQ keys its data directory on the node name, which comes from the hostname.
+    # A fixed hostname keeps the data volume usable when the container is recreated.
+    hostname: loanflow-rabbitmq
+    ports:
+      - "5673:5672"
+      - "15672:15672"
+    volumes:
+      # Queues and messages survive "docker compose down" (but not "down -v").
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  servicebus-emulator:
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
+    container_name: loanflow-servicebus
+    volumes:
+      # Queues are created from this file at startup. Restart the container after editing it.
+      - ./servicebus/Config.json:/ServiceBus_Emulator/ConfigFiles/Config.json
+    ports:
+      - "5672:5672"
+      - "5300:5300"
+    environment:
+      SQL_SERVER: mssql
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env}"
+      ACCEPT_EULA: "${ACCEPT_EULA:?Set ACCEPT_EULA in .env}"
+      EMULATOR_HTTP_PORT: 5300
+    depends_on:
+      - mssql
+
+  mssql:
+    # One SQL Server, two users: the Service Bus emulator keeps its own databases here, and
+    # LoanFlow's EF Core ledger lives in a separate database (LoanFlowLedger).
+    #
+    # No volume on purpose: "docker compose stop"/"start" keeps the data, "docker compose down"
+    # wipes it, and the Worker recreates the ledger from the migrations on its next start.
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: loanflow-mssql
+    ports:
+      - "14330:1433"
+    environment:
+      ACCEPT_EULA: "${ACCEPT_EULA:?Set ACCEPT_EULA in .env}"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env}"
+
+volumes:
+  rabbitmq-data:
