@@ -21,8 +21,8 @@ services:
     # A fixed hostname keeps the data volume usable when the container is recreated.
     hostname: loanflow-rabbitmq
     ports:
-      - "5673:5672"
-      - "15672:15672"
+      - "127.0.0.1:5673:5672"
+      - "127.0.0.1:15672:15672"
     volumes:
       # Queues and messages survive "docker compose down" (but not "down -v").
       - rabbitmq-data:/var/lib/rabbitmq
@@ -39,8 +39,8 @@ services:
       # Queues are created from this file at startup. Restart the container after editing it.
       - ./servicebus/Config.json:/ServiceBus_Emulator/ConfigFiles/Config.json
     ports:
-      - "5672:5672"
-      - "5300:5300"
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:5300:5300"
     environment:
       SQL_SERVER: mssql
       MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env}"
@@ -58,7 +58,7 @@ services:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: loanflow-mssql
     ports:
-      - "14330:1433"
+      - "127.0.0.1:14330:1433"
     environment:
       ACCEPT_EULA: "${ACCEPT_EULA:?Set ACCEPT_EULA in .env}"
       MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env}"
