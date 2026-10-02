@@ -9,7 +9,7 @@
             "Properties": {
               "RequiresSession": true,
               "RequiresDuplicateDetection": true,
-              "DuplicateDetectionHistoryTimeWindow": "PT10M",
+              "DuplicateDetectionHistoryTimeWindow": "PT5M",
               "MaxDeliveryCount": 5,
               "LockDuration": "PT30S",
               "DefaultMessageTimeToLive": "PT1H",
