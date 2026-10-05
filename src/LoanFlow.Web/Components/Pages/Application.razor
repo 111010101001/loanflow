@@ -4,7 +4,12 @@
 
 @inject ILoanApplicationRepository LoanApplicationRepository
 @inject TimeProvider TimeProvider
+@inject NavigationManager NavigationManager
 
+@if (application is null)
+{
+    <p><em>Loading...</em></p>
+}
 @if (application != null)
 {
     <h3>Application</h3>
@@ -49,7 +54,9 @@
         else
         {
             statusMessage = "unable to approve";
+
         }
+        NavigationManager.NavigateTo(NavigationManager.Uri, true);
     }
 
     protected override async Task OnParametersSetAsync()

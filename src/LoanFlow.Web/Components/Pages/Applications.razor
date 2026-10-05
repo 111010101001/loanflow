@@ -1,8 +1,7 @@
 @page "/applications"
 
-@rendermode InteractiveServer
+@attribute [StreamRendering]
 
-@using LoanFlow.Web.Components.Models
 
 @inject ILoanApplicationRepository LoanApplicationRepository
 
@@ -17,16 +16,17 @@
 }
 else
 {
-    <table>
-    @foreach (var application in applications)
-    {
-        <tr>
-            <td><a href="/applications/@application.Id"> @application.ApplicantName</a></td>
-            <td>@application.Amount</td>
-            <td>@application.Status</td>
-            
-        </tr>
-    }
+    <table class="table">
+        @foreach (var application in applications)
+        {
+            <tr>
+                <td><a href="/applications/@application.Id"> @application.ApplicantName</a></td>
+                <td>@application.Amount</td>
+                <td>@application.Status</td>
+                <td>@application.SubmittedAtUtc</td>
+
+            </tr>
+        }
     </table>
 }
 
@@ -40,18 +40,3 @@ else
     }
 }
 
-@*
-TODO(step 1): the list and a details page.
-
- - This page: inject ILoanApplicationRepository, load ListRecentAsync(50) in OnInitializedAsync,
-   render a table (applicant, amount, status, submitted). Link each row to /applications/{id}.
-
- - Details page: a new component with @page "/applications/{Id:guid}" and [Parameter] public Guid Id.
-   Show the fields and the History list.
-
- - Step 3 makes the details page live: @rendermode InteractiveServer, subscribe to the
-   live-updates hub in OnInitialized, update state and call InvokeAsync(StateHasChanged)
-   when an event for this application arrives, and unsubscribe in Dispose (implement
-   IDisposable). Forgetting to unsubscribe leaks every component instance that ever
-   subscribed, because the singleton hub keeps a reference to it.
-*@

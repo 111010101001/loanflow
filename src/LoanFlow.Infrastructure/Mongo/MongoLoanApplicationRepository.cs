@@ -45,8 +45,8 @@ public sealed class MongoLoanApplicationRepository(IMongoDatabase database) : IL
         var combinedFilter = Builders<LoanApplication>.Filter.Eq(x => x.Id, id) & Builders<LoanApplication>.Filter.Eq(x => x.Status, expected);
         var result = await Applications.UpdateOneAsync(
             combinedFilter,
-            Builders<LoanApplication>.Update.Set(x => x.Status, change.Status).
-            Push(x => x.History, change),
+            Builders<LoanApplication>.Update.Set(x => x.Status, change.Status)
+            .Push(x => x.History, change),
             cancellationToken: cancellationToken
         );
         return result.ModifiedCount == 1;
