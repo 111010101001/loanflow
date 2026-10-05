@@ -1,0 +1,60 @@
+﻿@page "/applications/{Id:guid}"
+
+@rendermode InteractiveServer
+
+@inject ILoanApplicationRepository LoanApplicationRepository
+@inject TimeProvider TimeProvider
+
+@if (application != null)
+{
+    <h3>Application</h3>
+    <h1>@application.ApplicantName</h1>
+    <p>@application.Amount</p>
+    <p>@application.Status</p>
+    <p>History</p>
+    <table class="table">
+        @foreach (var change in application.History)
+        {
+            <tr>
+            <td>@change.Status</td>
+            <td>@change.Reason</td>
+            <td>@change.AtUtc</td>
+            </tr>
+        }
+    </table>
+    @if (application?.Status == ApplicationStatus.Submitted)
+    {
+        <button @onclick="ApproveAsync">Approve</button>
+    }
+
+    <h2>@statusMessage</h2>
+}
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private LoanApplication? application;
+    private string statusMessage = "loading";
+    private async Task ApproveAsync()
+    {
+        var approved = await LoanApplicationRepository.TryTransitionAsync(Id, ApplicationStatus.Submitted, new StatusChange(
+            ApplicationStatus.Approved,
+            TimeProvider.GetUtcNow().UtcDateTime,
+            "manual"
+        ) );
+        if (approved)
+        {
+            application = await LoanApplicationRepository.GetAsync(Id);
+        }
+        else
+        {
+            statusMessage = "unable to approve";
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        application = await LoanApplicationRepository.GetAsync(Id);
+        statusMessage = "";
+    }
+}
