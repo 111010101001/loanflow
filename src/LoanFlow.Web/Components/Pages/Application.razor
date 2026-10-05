@@ -10,10 +10,6 @@
 {
     <p><em>Loading...</em></p>
 }
-@if (!found)
-{
-    <h3>404</h3>
-}
 @if (application != null)
 {
     <h3>Application</h3>
@@ -67,7 +63,7 @@
         statusMessage = "";
         if (application is null)
         {
-            found = false;
+            NavigationManager.NotFound();
         }
     }
 }

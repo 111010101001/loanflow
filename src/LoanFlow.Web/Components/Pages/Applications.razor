@@ -16,12 +16,22 @@
 else
 {
     <table class="table">
-        <tr>
-            <td>Id</td>
-            <td>Amount</td>
-            <td>Status</td>
-            <td>SubmittedAtUtc</td>
-        </tr>
+        <thead>
+            <tr>
+                <th>
+                    Name
+                </th>
+                <th>
+                    Amount
+                </th>
+                <th>
+                    Status
+                </th>
+                <th>
+                    Submitted (UTC)
+                </th>
+            </tr>
+        </thead>
         @foreach (var application in applications)
         {
             <tr>
