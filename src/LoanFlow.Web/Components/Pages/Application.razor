@@ -6,9 +6,13 @@
 @inject TimeProvider TimeProvider
 @inject NavigationManager NavigationManager
 
-@if (application is null)
+@if (application is null && found)
 {
     <p><em>Loading...</em></p>
+}
+@if (!found)
+{
+    <h3>404</h3>
 }
 @if (application != null)
 {
@@ -40,6 +44,7 @@
 
     private LoanApplication? application;
     private string statusMessage = "loading";
+    private bool found = true;
     private async Task ApproveAsync()
     {
         var approved = await LoanApplicationRepository.TryTransitionAsync(Id, ApplicationStatus.Submitted, new StatusChange(
@@ -47,21 +52,22 @@
             TimeProvider.GetUtcNow().UtcDateTime,
             "manual"
         ) );
-        if (approved)
-        {
-            application = await LoanApplicationRepository.GetAsync(Id);
-        }
-        else
+        if (!approved)
         {
             statusMessage = "unable to approve";
-
         }
-        NavigationManager.NavigateTo(NavigationManager.Uri, true);
+        application = await LoanApplicationRepository.GetAsync(Id);
+
+
     }
 
     protected override async Task OnParametersSetAsync()
     {
         application = await LoanApplicationRepository.GetAsync(Id);
         statusMessage = "";
+        if (application is null)
+        {
+            found = false;
+        }
     }
 }

@@ -9,7 +9,6 @@
 
 <h1>Applications</h1>
 
-<div class="alert alert-secondary">Step 1: list recent applications here.</div>
 @if (applications is null)
 {
     <p><em>Loading...</em></p>
@@ -17,6 +16,12 @@
 else
 {
     <table class="table">
+        <tr>
+            <td>Id</td>
+            <td>Amount</td>
+            <td>Status</td>
+            <td>SubmittedAtUtc</td>
+        </tr>
         @foreach (var application in applications)
         {
             <tr>
