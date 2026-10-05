@@ -6,11 +6,11 @@
 @inject TimeProvider TimeProvider
 @inject NavigationManager NavigationManager
 
-@if (application is null && found)
+@if (application is null)
 {
     <p><em>Loading...</em></p>
 }
-@if (application != null)
+else
 {
     <h3>Application</h3>
     <h1>@application.ApplicantName</h1>
@@ -27,7 +27,7 @@
             </tr>
         }
     </table>
-    @if (application?.Status == ApplicationStatus.Submitted)
+    @if (application.Status == ApplicationStatus.Submitted)
     {
         <button @onclick="ApproveAsync">Approve</button>
     }
@@ -39,8 +39,7 @@
     public Guid Id { get; set; }
 
     private LoanApplication? application;
-    private string statusMessage = "loading";
-    private bool found = true;
+    private string statusMessage = "";
     private async Task ApproveAsync()
     {
         var approved = await LoanApplicationRepository.TryTransitionAsync(Id, ApplicationStatus.Submitted, new StatusChange(
