@@ -1,23 +1,57 @@
 @page "/applications"
 
+@attribute [StreamRendering]
+
+
+@inject ILoanApplicationRepository LoanApplicationRepository
+
 <PageTitle>Applications</PageTitle>
 
 <h1>Applications</h1>
 
-<div class="alert alert-secondary">Step 1: list recent applications here.</div>
+@if (applications is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>
+                    Name
+                </th>
+                <th>
+                    Amount
+                </th>
+                <th>
+                    Status
+                </th>
+                <th>
+                    Submitted (UTC)
+                </th>
+            </tr>
+        </thead>
+        @foreach (var application in applications)
+        {
+            <tr>
+                <td><a href="/applications/@application.Id"> @application.ApplicantName</a></td>
+                <td>@application.Amount</td>
+                <td>@application.Status</td>
+                <td>@application.SubmittedAtUtc</td>
 
-@*
-TODO(step 1): the list and a details page.
+            </tr>
+        }
+    </table>
+}
 
- - This page: inject ILoanApplicationRepository, load ListRecentAsync(50) in OnInitializedAsync,
-   render a table (applicant, amount, status, submitted). Link each row to /applications/{id}.
+@code
+{
+    private IReadOnlyList<LoanApplication>? applications;
+    protected override async Task OnInitializedAsync()
+    {
+        applications = await LoanApplicationRepository.ListRecentAsync(50);
 
- - Details page: a new component with @page "/applications/{Id:guid}" and [Parameter] public Guid Id.
-   Show the fields and the History list.
+    }
+}
 
- - Step 3 makes the details page live: @rendermode InteractiveServer, subscribe to the
-   live-updates hub in OnInitialized, update state and call InvokeAsync(StateHasChanged)
-   when an event for this application arrives, and unsubscribe in Dispose (implement
-   IDisposable). Forgetting to unsubscribe leaks every component instance that ever
-   subscribed, because the singleton hub keeps a reference to it.
-*@
