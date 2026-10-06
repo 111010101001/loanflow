@@ -44,12 +44,14 @@
 
 @code{
     private ApplicationForm form = new();
+    private readonly Guid submissionId = Guid.CreateVersion7();
     private bool isSaving;
     private async Task SubmitAsync()
     {
         if (isSaving) return;
         isSaving = true;
         var application = LoanApplication.Submit(
+            submissionId,
             applicantName: form.ApplicantName,
             email: form.Email,
             amount: form.Amount,

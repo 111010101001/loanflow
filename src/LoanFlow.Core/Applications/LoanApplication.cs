@@ -32,6 +32,7 @@ public sealed class LoanApplication
     /// this only guards against values that would corrupt the domain.
     /// </summary>
     public static LoanApplication Submit(
+        Guid id,
         string applicantName,
         string email,
         decimal amount,
@@ -46,6 +47,7 @@ public sealed class LoanApplication
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(termMonths);
         ArgumentOutOfRangeException.ThrowIfNegative(monthlyIncome);
         ArgumentOutOfRangeException.ThrowIfNegative(monthlyExpenses);
+        ArgumentOutOfRangeException.ThrowIfEqual(id, Guid.Empty);
 
         if (utcNow.Kind != DateTimeKind.Utc)
         {
@@ -54,7 +56,7 @@ public sealed class LoanApplication
 
         return new LoanApplication
         {
-            Id = Guid.CreateVersion7(),
+            Id = id,
             ApplicantName = applicantName.Trim(),
             Email = email.Trim(),
             Amount = amount,

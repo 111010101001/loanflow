@@ -1,6 +1,12 @@
+using System.Collections.Concurrent;
+using Azure.Messaging.ServiceBus;
 using LoanFlow.Core.Messaging;
+using Microsoft.Azure.Amqp.Framing;
+using MongoDB.Driver;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace LoanFlow.Infrastructure.ServiceBus;
+
 
 /// <summary>
 /// Service Bus implementation of <see cref="ICommandSender"/>. Registered as a singleton.
@@ -15,16 +21,28 @@ namespace LoanFlow.Infrastructure.ServiceBus;
 ///  - ScheduleAsync -> sender.ScheduleMessageAsync(...) returns the sequence number.
 ///  - CancelScheduledAsync -> sender.CancelScheduledMessageAsync(sequenceNumber).
 /// </summary>
-public sealed class ServiceBusCommandSender : ICommandSender
+public sealed class ServiceBusCommandSender(ServiceBusClient service) : ICommandSender
 {
+    private readonly ConcurrentDictionary<string, ServiceBusSender> buss = new();
     public Task SendAsync<TCommand>(
         string queueName,
         TCommand command,
         string? sessionId,
         string messageId,
         CancellationToken cancellationToken = default)
-        where TCommand : notnull =>
-        throw new NotImplementedException("Step 2: send a command to Service Bus.");
+        where TCommand : notnull
+    {
+        BinaryData data = BinaryData.FromObjectAsJson(command);
+        ServiceBusSender sender = buss.GetOrAdd(queueName, name => (service.CreateSender(name)));
+        ServiceBusMessage message = new ServiceBusMessage(data)
+        {
+            MessageId = messageId,
+            SessionId = sessionId,
+            Subject = typeof(TCommand).Name,
+            ContentType = "application/json",
+        };
+        return sender.SendMessageAsync(message, cancellationToken);
+    }
 
     public Task<long> ScheduleAsync<TCommand>(
         string queueName,
@@ -32,9 +50,22 @@ public sealed class ServiceBusCommandSender : ICommandSender
         DateTimeOffset enqueueAt,
         string messageId,
         CancellationToken cancellationToken = default)
-        where TCommand : notnull =>
-        throw new NotImplementedException("Step 2: schedule a command on Service Bus.");
+        where TCommand : notnull
+    {
+        BinaryData data = BinaryData.FromObjectAsJson(command);
+        ServiceBusSender sender = buss.GetOrAdd(queueName, name => (service.CreateSender(name)));
+        ServiceBusMessage message = new ServiceBusMessage(data)
+        {
+            MessageId = messageId,
+            Subject = typeof(TCommand).Name,
+            ContentType = "application/json",
+        };
+        return sender.ScheduleMessageAsync(message, enqueueAt, cancellationToken);
+    }
 
-    public Task CancelScheduledAsync(string queueName, long sequenceNumber, CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("Step 2: cancel a scheduled command.");
+    public Task CancelScheduledAsync(string queueName, long sequenceNumber, CancellationToken cancellationToken = default)
+    {
+        ServiceBusSender sender = buss.GetOrAdd(queueName, name => (service.CreateSender(name)));
+        return sender.CancelScheduledMessageAsync(sequenceNumber, cancellationToken);
+    }
 }

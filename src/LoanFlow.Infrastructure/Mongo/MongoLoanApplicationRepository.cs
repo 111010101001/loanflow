@@ -15,9 +15,16 @@ public sealed class MongoLoanApplicationRepository(IMongoDatabase database) : IL
     private IMongoCollection<LoanApplication> Applications { get; } =
         database.GetCollection<LoanApplication>(CollectionName);
 
-    public Task InsertAsync(LoanApplication application, CancellationToken cancellationToken = default)
+    public async Task InsertAsync(LoanApplication application, CancellationToken cancellationToken = default)
     {
-        return Applications.InsertOneAsync(application, cancellationToken: cancellationToken);
+        try
+        {
+            await Applications.InsertOneAsync(application, cancellationToken: cancellationToken);
+        }
+        catch (MongoWriteException ex) when (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
+        {
+            // already saved
+        }
     }
 
     public async Task<LoanApplication?> GetAsync(Guid id, CancellationToken cancellationToken = default)
