@@ -7,11 +7,18 @@
 @inject NavigationManager NavigationManager
 @inject TimeProvider TimeProvider
 @inject ILoanApplicationRepository Repository
+@inject ICommandSender CommandSender
+@inject ILogger<Apply> Logger
 
 <PageTitle>Apply for a loan</PageTitle>
 
 <h1>Apply for a loan</h1>
-
+@if (errorSaving)
+{
+    <div class="alert alert-danger" role="alert">
+        Couldn't submit your application. Please try again.
+    </div>
+}
 <EditForm Model="form" OnValidSubmit="SubmitAsync">
     <label>
         name
@@ -19,7 +26,7 @@
     </label>
     <label>
         email
-    <InputText @bind-Value="form.Email" />
+        <InputText @bind-Value="form.Email" />
     </label>
     <label>
         amount
@@ -27,39 +34,56 @@
     </label>
     <label>
         term
-    <InputNumber @bind-Value="form.TermMonths" />
+        <InputNumber @bind-Value="form.TermMonths" />
     </label>
     <label>
         income
-    <InputNumber @bind-Value="form.MonthlyIncome" />
+        <InputNumber @bind-Value="form.MonthlyIncome" />
     </label>
     <label>
         expense
-    <InputNumber @bind-Value="form.MonthlyExpenses" />
+        <InputNumber @bind-Value="form.MonthlyExpenses" />
     </label>
     <DataAnnotationsValidator />
     <ValidationSummary />
     <button disabled="@isSaving" type="submit">Submit</button>
 </EditForm>
 
-@code{
+@code {
     private ApplicationForm form = new();
     private readonly Guid submissionId = Guid.CreateVersion7();
     private bool isSaving;
+    private bool errorSaving;
     private async Task SubmitAsync()
     {
         if (isSaving) return;
         isSaving = true;
-        var application = LoanApplication.Submit(
-            submissionId,
-            applicantName: form.ApplicantName,
-            email: form.Email,
-            amount: form.Amount,
-            termMonths: form.TermMonths,
-            monthlyIncome: form.MonthlyIncome,
-            monthlyExpenses: form.MonthlyExpenses,
-            utcNow: TimeProvider.GetUtcNow().UtcDateTime);
-        await Repository.InsertAsync(application);
-        NavigationManager.NavigateTo($"/applications/{application.Id}");
+        errorSaving = false;
+        try
+        {
+            var application = LoanApplication.Submit(
+                submissionId,
+                applicantName: form.ApplicantName,
+                email: form.Email,
+                amount: form.Amount,
+                termMonths: form.TermMonths,
+                monthlyIncome: form.MonthlyIncome,
+                monthlyExpenses: form.MonthlyExpenses,
+                utcNow: TimeProvider.GetUtcNow().UtcDateTime);
+            await Repository.InsertAsync(application);
+            await CommandSender.SendAsync(
+                QueueNames.LoanApplications,
+                new ProcessApplication(ApplicationId:application.Id, SubmissionId:submissionId),
+                application.Id.ToString(),
+                submissionId.ToString());
+
+            NavigationManager.NavigateTo($"/applications/{application.Id}");
+        }
+        catch (Exception ex)
+        {
+            errorSaving = true;
+            Logger.LogError(ex, "Submitting {SubmissionId} failed", submissionId);
+            isSaving = false;
+        }
     }
 }

@@ -1,5 +1,4 @@
 using LoanFlow.Core.Applications;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace LoanFlow.Tests;
 
