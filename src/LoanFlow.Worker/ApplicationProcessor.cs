@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using Azure.Messaging.ServiceBus;
 using LoanFlow.Core.Applications;
 using LoanFlow.Core.Credit;
 using LoanFlow.Core.Messaging;
@@ -15,6 +17,7 @@ namespace LoanFlow.Worker;
 /// </summary>
 public sealed class ApplicationProcessor(
     IServiceScopeFactory scopeFactory,
+    ServiceBusClient client,
     ILogger<ApplicationProcessor> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -36,10 +39,58 @@ public sealed class ApplicationProcessor(
         //      CreditBureauUnavailableException -> args.AbandonMessageAsync(args.Message)
         //                                          (redelivered until MaxDeliveryCount, then dead-lettered)
         //      anything unexpected / bad data   -> args.DeadLetterMessageAsync(args.Message, reason, description)
-        logger.LogInformation(
-            "ApplicationProcessor is a stub until step 2. Queue: {Queue}", QueueNames.LoanApplications);
+        ServiceBusSessionProcessor processor = client.CreateSessionProcessor(QueueNames.LoanApplications, new ServiceBusSessionProcessorOptions
+        {
+            AutoCompleteMessages = false,
+            MaxConcurrentSessions = 8,
+        });
 
-        await Task.Delay(Timeout.Infinite, stoppingToken);
+        // handlers
+        processor.ProcessMessageAsync += OnMessageAsync;
+        processor.ProcessErrorAsync += OnErrorAsync;
+        await processor.StartProcessingAsync(stoppingToken);
+        try
+        {
+            await Task.Delay(Timeout.Infinite, stoppingToken); // wait until Ctrl+C
+        }
+        finally
+        {
+            await processor.StopProcessingAsync();
+            await processor.DisposeAsync();
+        }
+
+    }
+
+    private Task OnErrorAsync(ProcessErrorEventArgs args)
+    {
+        logger.LogError(args.Exception, "Service Bus error in {ErrorSource} on {EntityPath}", args.ErrorSource, args.EntityPath);
+        return Task.CompletedTask;
+    }
+
+    private async Task OnMessageAsync(ProcessSessionMessageEventArgs args)
+    {
+
+        switch (args.Message.Subject)
+        {
+            case nameof(ProcessApplication):
+                {
+                    var command = args.Message.Body.ToObjectFromJson<ProcessApplication>();
+                    if (command is null)
+                    {
+                        await args.DeadLetterMessageAsync(args.Message, "InvalidBody", "Body was empty or null");
+                        return;
+                    }
+                    await HandleAsync(command, args.CancellationToken);
+                    await args.CompleteMessageAsync(args.Message);
+                }
+                break;
+
+            default:
+                // dead-letter: unknown subject
+                await args.DeadLetterMessageAsync(args.Message, "UnknownSubject", $"unknown subject {args.Message.Subject}");
+                break;
+        }
+
     }
 
     /// <summary>
