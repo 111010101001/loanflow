@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Azure.Messaging.ServiceBus;
 using LoanFlow.Core.Applications;
 using LoanFlow.Core.Credit;
@@ -8,12 +7,6 @@ namespace LoanFlow.Worker;
 
 /// <summary>
 /// Consumes commands from the session-enabled "loan-applications" queue.
-///
-/// Until step 2 it only logs that it's a stub, but the DI shape is already here:
-/// hosted services are singletons, while ILoanApplicationRepository is scoped. Injecting
-/// the repository into this constructor would be a captive dependency (one repository
-/// for the lifetime of the app), and the host refuses to start in Development if you try.
-/// Instead, each message gets its own scope; see HandleAsync.
 /// </summary>
 public sealed class ApplicationProcessor(
     IServiceScopeFactory scopeFactory,
@@ -22,23 +15,6 @@ public sealed class ApplicationProcessor(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // TODO(step 2): replace this with a ServiceBusSessionProcessor.
-        //
-        //  - Inject ServiceBusClient (singleton) and create the processor:
-        //      client.CreateSessionProcessor(QueueNames.LoanApplications, new ServiceBusSessionProcessorOptions
-        //      {
-        //          AutoCompleteMessages = false,   // complete only after the work succeeded
-        //          MaxConcurrentSessions = 8,      // 8 applications in parallel, each strictly in order
-        //      });
-        //  - processor.ProcessMessageAsync += ...; processor.ProcessErrorAsync += ...;
-        //    await processor.StartProcessingAsync(stoppingToken);
-        //    then wait until stoppingToken fires, and StopProcessingAsync + DisposeAsync.
-        //  - In the message handler: look at args.Message.Subject to pick the contract type,
-        //    deserialize with args.Message.Body.ToObjectFromJson<T>(), call HandleAsync, then:
-        //      success                          -> args.CompleteMessageAsync(args.Message)
-        //      CreditBureauUnavailableException -> args.AbandonMessageAsync(args.Message)
-        //                                          (redelivered until MaxDeliveryCount, then dead-lettered)
-        //      anything unexpected / bad data   -> args.DeadLetterMessageAsync(args.Message, reason, description)
         ServiceBusSessionProcessor processor = client.CreateSessionProcessor(QueueNames.LoanApplications, new ServiceBusSessionProcessorOptions
         {
             AutoCompleteMessages = false,
