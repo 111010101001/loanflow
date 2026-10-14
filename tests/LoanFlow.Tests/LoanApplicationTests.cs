@@ -59,7 +59,4 @@ public class LoanApplicationTests
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             LoanApplication.Submit(Guid.CreateVersion7(), "Ada", "ada@example.com", amount, 36, 42_000m, 18_000m, Now));
     }
-
-    // TODO(step 5): tests for your decision rules (reject / manual review / approve) and
-    // for offer expiry using FakeTimeProvider from Microsoft.Extensions.TimeProvider.Testing.
 }

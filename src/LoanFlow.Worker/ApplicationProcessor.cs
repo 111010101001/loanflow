@@ -10,7 +10,10 @@ namespace LoanFlow.Worker;
 /// </summary>
 public sealed class ApplicationProcessor(
     IServiceScopeFactory scopeFactory,
+    ICommandSender sender,
     ServiceBusClient client,
+    CreditPolicyOptions policy,
+    TimeProvider timeProvider,
     ILogger<ApplicationProcessor> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -87,6 +90,29 @@ public sealed class ApplicationProcessor(
         }
 
         var report = await bureau.GetReportAsync(application.Email, cancellationToken);
+        var decision = CreditDecision.MakeDecision(application, report, policy, 0m);
+
+        if (decision.Outcome == ApplicationStatus.Approved)
+        {
+            var expire = timeProvider.GetUtcNow().UtcDateTime + policy.OfferLifetime;
+            application.Offer = new LoanOffer()
+            {
+                ExpiresAtUtc = expire,
+                ExpirySequenceNumber = sender.ScheduleAsync(QueueNames.OfferExpiry, new ExpireOffer(application.Id), expire, application.Id.ToString(), cancellationToken)
+            };
+
+        }
+
+        bool result = await repository.TryTransitionAsync(application.Id, ApplicationStatus.Submitted, new StatusChange(
+            decision.Outcome,
+            timeProvider.GetUtcNow().UtcDateTime));
+
+        if (!result)
+        {
+            logger.LogWarning("Application {ApplicationId} duplicate or arrived late; nothing to do", command.ApplicationId);
+            return;
+        }
+        
 
         // TODO(step 2): decide with CreditPolicyOptions (reject / manual review / approve),
         // then repository.TryTransitionAsync(id, expected: Submitted, change, ...).
