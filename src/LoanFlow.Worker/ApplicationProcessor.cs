@@ -1,7 +1,11 @@
 using Azure.Messaging.ServiceBus;
 using LoanFlow.Core.Applications;
 using LoanFlow.Core.Credit;
+using LoanFlow.Core.Ledger;
 using LoanFlow.Core.Messaging;
+using Microsoft.Extensions.Options;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+
 
 namespace LoanFlow.Worker;
 
@@ -12,7 +16,7 @@ public sealed class ApplicationProcessor(
     IServiceScopeFactory scopeFactory,
     ICommandSender sender,
     ServiceBusClient client,
-    CreditPolicyOptions policy,
+    IOptions<CreditPolicyOptions> options,
     TimeProvider timeProvider,
     ILogger<ApplicationProcessor> logger) : BackgroundService
 {
@@ -90,26 +94,37 @@ public sealed class ApplicationProcessor(
         }
 
         var report = await bureau.GetReportAsync(application.Email, cancellationToken);
-        var decision = CreditDecision.MakeDecision(application, report, policy, 0m);
-
+        var policy = options.Value;
+        var rate = (decimal)policy.AnnualInterestRate;
+        var decision = CreditDecision.MakeDecision(application, report, policy, (decimal)policy.AnnualInterestRate);
+        long? sequenceNumber = null;
+        var now = timeProvider.GetUtcNow().UtcDateTime;
         if (decision.Outcome == ApplicationStatus.Approved)
         {
-            var expire = timeProvider.GetUtcNow().UtcDateTime + policy.OfferLifetime;
+            var expire = now + policy.OfferLifetime;
+            sequenceNumber = await sender.ScheduleAsync(QueueNames.OfferExpiry, new ExpireOffer(application.Id), expire, application.Id.ToString(), cancellationToken);
             application.Offer = new LoanOffer()
             {
                 ExpiresAtUtc = expire,
-                ExpirySequenceNumber = sender.ScheduleAsync(QueueNames.OfferExpiry, new ExpireOffer(application.Id), expire, application.Id.ToString(), cancellationToken)
+                AnnualInterestRate = (decimal)policy.AnnualInterestRate,
+                MonthlyPayment = Annuity.MonthlyPayment(application.Amount, (decimal)policy.AnnualInterestRate, application.TermMonths),
+                ExpirySequenceNumber = sequenceNumber
             };
 
         }
 
         bool result = await repository.TryTransitionAsync(application.Id, ApplicationStatus.Submitted, new StatusChange(
             decision.Outcome,
-            timeProvider.GetUtcNow().UtcDateTime));
+            now,
+            Reason: decision.Reason),
+            application.Offer,
+            cancellationToken);
 
         if (!result)
         {
             logger.LogWarning("Application {ApplicationId} duplicate or arrived late; nothing to do", command.ApplicationId);
+            if (sequenceNumber is long number)
+                await sender.CancelScheduledAsync(QueueNames.OfferExpiry, number, cancellationToken);
             return;
         }
         

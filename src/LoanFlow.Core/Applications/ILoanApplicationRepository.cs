@@ -27,5 +27,6 @@ public interface ILoanApplicationRepository
         Guid id,
         ApplicationStatus expected,
         StatusChange change,
+        LoanOffer? offer = null,
         CancellationToken cancellationToken = default);
 }

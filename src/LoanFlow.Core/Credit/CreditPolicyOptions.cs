@@ -19,6 +19,12 @@ public sealed class CreditPolicyOptions
     [Range(300, 850)]
     public int ManualReviewBelowScore { get; set; } = 660;
 
+    /// <summary>
+    /// Annual interest rate as a fraction: 0.079 = 7.9 %
+    /// </summary>
+    [Range(0.0, 0.5)]
+    public double AnnualInterestRate { get; set; } = 0.079;
+
     /// <summary>Max share of monthly income that may go to debt payments, including the new loan.</summary>
     [Range(0.05, 1.0)]
     public double MaxDebtToIncomeRatio { get; set; } = 0.45;
