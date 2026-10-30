@@ -60,8 +60,7 @@ public sealed class MongoLoanApplicationRepository(IMongoDatabase database) : IL
         }
         var result = await Applications.UpdateOneAsync(
             combinedFilter,
-            update
-            .Push(x => x.History, change),
+            update,
             cancellationToken: cancellationToken
         );
         return result.ModifiedCount == 1;

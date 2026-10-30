@@ -3,8 +3,9 @@ using LoanFlow.Core.Applications;
 using LoanFlow.Core.Credit;
 using LoanFlow.Core.Ledger;
 using LoanFlow.Core.Messaging;
+using Microsoft.Azure.Amqp;
 using Microsoft.Extensions.Options;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using static System.Net.Mime.MediaTypeNames;
 
 
 namespace LoanFlow.Worker;
@@ -67,7 +68,19 @@ public sealed class ApplicationProcessor(
                     await args.CompleteMessageAsync(args.Message);
                 }
                 break;
+            case nameof(AcceptOffer):
+                {
+                    var command = args.Message.Body.ToObjectFromJson<AcceptOffer>();
+                    if (command is null)
+                    {
+                        await args.DeadLetterMessageAsync(args.Message, "InvalidBody", "Body was empty or null");
+                        return;
+                    }
+                    await AcceptAsync(command, args.CancellationToken);
 
+                    await args.CompleteMessageAsync(args.Message);
+                }
+                break;
             default:
                 // dead-letter: unknown subject
                 await args.DeadLetterMessageAsync(args.Message, "UnknownSubject", $"unknown subject {args.Message.Subject}");
@@ -76,6 +89,49 @@ public sealed class ApplicationProcessor(
 
     }
 
+    private async Task AcceptAsync(AcceptOffer command, CancellationToken cancellationToken)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+
+        var repository = scope.ServiceProvider.GetRequiredService<ILoanApplicationRepository>();
+
+        var application = await repository.GetAsync(command.ApplicationId, cancellationToken);
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+
+        if (application is null)
+        {
+            logger.LogWarning("Could not find Application {ApplicationId}", command.ApplicationId);
+            return;
+        }
+        if (application.Offer is null)
+        {
+            logger.LogWarning("Could not find any offer to accept {ApplicationId}", command.ApplicationId);
+            return;
+        }
+
+        bool result = await repository.TryTransitionAsync(application.Id, ApplicationStatus.Approved, new StatusChange(
+            ApplicationStatus.OfferAccepted,
+            now,
+            Reason: "Offer accepted by user"),
+            null,
+            cancellationToken);
+        if (!result)
+        {
+            logger.LogWarning("Application {ApplicationId} could not be accepted", command.ApplicationId);
+            return;
+        }
+        if (application.Offer?.ExpirySequenceNumber is long number)
+        {
+            try
+            {
+                await sender.CancelScheduledAsync(QueueNames.OfferExpiry, number, cancellationToken);
+            }
+            catch (Exception ServiceBusException)
+            {
+                logger.LogWarning("Could not cancel offer for Application {ApplicationId}", command.ApplicationId);
+            }
+        }
+    }
     /// <summary>
     /// The per-message scope pattern. Everything resolved from <c>scope.ServiceProvider</c>
     /// lives exactly as long as this message is being handled.
@@ -96,20 +152,20 @@ public sealed class ApplicationProcessor(
         var report = await bureau.GetReportAsync(application.Email, cancellationToken);
         var policy = options.Value;
         var rate = (decimal)policy.AnnualInterestRate;
-        var decision = CreditDecision.MakeDecision(application, report, policy, (decimal)policy.AnnualInterestRate);
+        var decision = CreditDecision.MakeDecision(application, report, policy, rate);
         long? sequenceNumber = null;
         var now = timeProvider.GetUtcNow().UtcDateTime;
         if (decision.Outcome == ApplicationStatus.Approved)
         {
             var expire = now + policy.OfferLifetime;
-            sequenceNumber = await sender.ScheduleAsync(QueueNames.OfferExpiry, new ExpireOffer(application.Id), expire, application.Id.ToString(), cancellationToken);
             application.Offer = new LoanOffer()
             {
                 ExpiresAtUtc = expire,
-                AnnualInterestRate = (decimal)policy.AnnualInterestRate,
-                MonthlyPayment = Annuity.MonthlyPayment(application.Amount, (decimal)policy.AnnualInterestRate, application.TermMonths),
+                AnnualInterestRate = rate,
+                MonthlyPayment = Annuity.MonthlyPayment(application.Amount, rate, application.TermMonths),
                 ExpirySequenceNumber = sequenceNumber
             };
+            sequenceNumber = await sender.ScheduleAsync(QueueNames.OfferExpiry, new ExpireOffer(application.Id, application.Offer.Id), expire, application.Id.ToString(), cancellationToken);
 
         }
 
@@ -128,11 +184,6 @@ public sealed class ApplicationProcessor(
             return;
         }
         
-
-        // TODO(step 2): decide with CreditPolicyOptions (reject / manual review / approve),
-        // then repository.TryTransitionAsync(id, expected: Submitted, change, ...).
-        // If it returns false the message is a duplicate or arrived late: log and complete it.
-        // On approval also schedule ExpireOffer at now + OfferLifetime and store the sequence number.
         // TODO(step 3): publish ApplicationDecided with IEventPublisher.
         // TODO(step 4): handling AcceptOffer. Get LedgerDbContext from the same scope, then in ONE
         // SaveChangesAsync add Loan.Open(...) and OutboxMessage.For(RoutingKeys.LoanOpened, new LoanOpened(...), now).
@@ -140,7 +191,7 @@ public sealed class ApplicationProcessor(
         // first; if SQL then fails, the retried message finds OfferAccepted and must still create
         // the loan. The unique index on Loan.ApplicationId stops that retry from creating two.
         logger.LogInformation(
-            "Application {ApplicationId}: score {Score}, remarks {Remarks}",
-            application.Id, report.Score, report.PaymentRemarks);
+            "Application {ApplicationId}: outcome {Outcome}, score {Score}, remarks {Remarks}",
+            application.Id, decision.Outcome, report.Score, report.PaymentRemarks);
     }
 }

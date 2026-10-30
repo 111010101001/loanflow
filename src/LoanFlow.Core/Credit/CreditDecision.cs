@@ -41,13 +41,13 @@ namespace LoanFlow.Core.Credit
             }
             if (((Annuity.MonthlyPayment(loanApplication.Amount, rate, loanApplication.TermMonths) + creditReport.ExistingMonthlyDebtPayments) / loanApplication.MonthlyIncome) > (decimal)creditPolicyOptions.MaxDebtToIncomeRatio)
             {
-                return Reject("to much debt");
+                return Reject($"too much debt\n Debt payments {Annuity.MonthlyPayment(loanApplication.Amount, rate, loanApplication.TermMonths)} of income {loanApplication.MonthlyIncome}");
             }
             if (creditPolicyOptions.ManualReviewBelowScore > creditReport.Score)
             {
                 return new CreditDecision(ApplicationStatus.ManualReview, "manual");
             }
-            return new CreditDecision(ApplicationStatus.Approved, "pass");
+            return new CreditDecision(ApplicationStatus.Approved, "passed credit check");
         }
 
 

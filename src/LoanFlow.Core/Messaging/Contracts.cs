@@ -21,7 +21,7 @@ public sealed record RecordManualDecision(Guid ApplicationId, bool Approve, stri
 public sealed record AcceptOffer(Guid ApplicationId);
 
 /// <summary>Scheduled for the offer's expiry time; a no-op if the offer was accepted first.</summary>
-public sealed record ExpireOffer(Guid ApplicationId);
+public sealed record ExpireOffer(Guid ApplicationId, Guid OfferId);
 
 // ---- Events (RabbitMQ) ----
 

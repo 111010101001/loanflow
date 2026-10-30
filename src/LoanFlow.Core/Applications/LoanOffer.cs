@@ -7,6 +7,8 @@ public sealed class LoanOffer
     public decimal MonthlyPayment { get; init; }
     public DateTime ExpiresAtUtc { get; init; }
 
+    public Guid Id { get; init; }
+
     /// <summary>
     /// Sequence number of the scheduled ExpireOffer message on Service Bus.
     /// Store it so you can cancel the scheduled message when the offer is accepted (step 2).
