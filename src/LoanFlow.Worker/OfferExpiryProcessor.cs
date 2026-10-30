@@ -1,9 +1,7 @@
 using Azure.Messaging.ServiceBus;
 using LoanFlow.Core.Applications;
 using LoanFlow.Core.Credit;
-using LoanFlow.Core.Ledger;
 using LoanFlow.Core.Messaging;
-using Microsoft.Extensions.Options;
 
 
 namespace LoanFlow.Worker;
@@ -80,8 +78,6 @@ public sealed class OfferExpiryProcessor(
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var repository = scope.ServiceProvider.GetRequiredService<ILoanApplicationRepository>();
-        var bureau = scope.ServiceProvider.GetRequiredService<ICreditBureau>();
-
 
         var application = await repository.GetAsync(command.ApplicationId, cancellationToken);
         if (application is null)

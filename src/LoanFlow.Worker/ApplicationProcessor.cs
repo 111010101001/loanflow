@@ -111,7 +111,7 @@ public sealed class ApplicationProcessor(
             ApplicationStatus.OfferAccepted,
             now,
             Reason: "Offer accepted by user"),
-            null,
+            application.Offer,
             cancellationToken);
         if (!result)
         {
@@ -126,7 +126,7 @@ public sealed class ApplicationProcessor(
             }
             catch (ServiceBusException ex)
             {
-                logger.LogWarning("Could not cancel offer for Application {ApplicationId} {ex}", command.ApplicationId, ex);
+                logger.LogWarning(ex,"Could not cancel offer for Application {ApplicationId}", command.ApplicationId);
             }
         }
     }
@@ -160,6 +160,7 @@ public sealed class ApplicationProcessor(
             sequenceNumber = await sender.ScheduleAsync(QueueNames.OfferExpiry, new ExpireOffer(application.Id, offerId), expire, application.Id.ToString(), cancellationToken);
             application.Offer = new LoanOffer()
             {
+                Id = offerId,
                 ExpiresAtUtc = expire,
                 AnnualInterestRate = rate,
                 MonthlyPayment = Annuity.MonthlyPayment(application.Amount, rate, application.TermMonths),
