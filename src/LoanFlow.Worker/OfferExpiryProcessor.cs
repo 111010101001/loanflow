@@ -15,11 +15,11 @@ public sealed class OfferExpiryProcessor(
     IServiceScopeFactory scopeFactory,
     ServiceBusClient client,
     TimeProvider timeProvider,
-    ILogger<ApplicationProcessor> logger) : BackgroundService
+    ILogger<OfferExpiryProcessor> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        ServiceBusSessionProcessor processor = client.CreateSessionProcessor(QueueNames.OfferExpiry, new ServiceBusSessionProcessorOptions
+        ServiceBusProcessor processor = client.CreateProcessor(QueueNames.OfferExpiry, new ServiceBusProcessorOptions
         {
             AutoCompleteMessages = false
         });
@@ -46,7 +46,7 @@ public sealed class OfferExpiryProcessor(
         return Task.CompletedTask;
     }
 
-    private async Task OnMessageAsync(ProcessSessionMessageEventArgs args)
+    private async Task OnMessageAsync(ProcessMessageEventArgs args)
     {
 
         switch (args.Message.Subject)

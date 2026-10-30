@@ -3,9 +3,7 @@ using LoanFlow.Core.Applications;
 using LoanFlow.Core.Credit;
 using LoanFlow.Core.Ledger;
 using LoanFlow.Core.Messaging;
-using Microsoft.Azure.Amqp;
 using Microsoft.Extensions.Options;
-using static System.Net.Mime.MediaTypeNames;
 
 
 namespace LoanFlow.Worker;
@@ -126,9 +124,9 @@ public sealed class ApplicationProcessor(
             {
                 await sender.CancelScheduledAsync(QueueNames.OfferExpiry, number, cancellationToken);
             }
-            catch (Exception ServiceBusException)
+            catch (ServiceBusException ex)
             {
-                logger.LogWarning("Could not cancel offer for Application {ApplicationId}", command.ApplicationId);
+                logger.LogWarning("Could not cancel offer for Application {ApplicationId} {ex}", command.ApplicationId, ex);
             }
         }
     }
@@ -155,9 +153,11 @@ public sealed class ApplicationProcessor(
         var decision = CreditDecision.MakeDecision(application, report, policy, rate);
         long? sequenceNumber = null;
         var now = timeProvider.GetUtcNow().UtcDateTime;
+        var offerId = Guid.CreateVersion7();
         if (decision.Outcome == ApplicationStatus.Approved)
         {
             var expire = now + policy.OfferLifetime;
+            sequenceNumber = await sender.ScheduleAsync(QueueNames.OfferExpiry, new ExpireOffer(application.Id, offerId), expire, application.Id.ToString(), cancellationToken);
             application.Offer = new LoanOffer()
             {
                 ExpiresAtUtc = expire,
@@ -165,7 +165,6 @@ public sealed class ApplicationProcessor(
                 MonthlyPayment = Annuity.MonthlyPayment(application.Amount, rate, application.TermMonths),
                 ExpirySequenceNumber = sequenceNumber
             };
-            sequenceNumber = await sender.ScheduleAsync(QueueNames.OfferExpiry, new ExpireOffer(application.Id, application.Offer.Id), expire, application.Id.ToString(), cancellationToken);
 
         }
 
