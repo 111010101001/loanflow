@@ -62,7 +62,23 @@ public sealed class ApplicationProcessor(
                         await args.DeadLetterMessageAsync(args.Message, "InvalidBody", "Body was empty or null");
                         return;
                     }
-                    await HandleAsync(command, args.CancellationToken);
+                    try
+                    {
+                        await HandleAsync(command, args.CancellationToken);
+                    }
+                    catch (CreditBureauUnavailableException ex) 
+                    {
+                        // temporary
+                        logger.LogWarning(ex, "Credit Bureau was Unavailable");
+                        await args.AbandonMessageAsync(args.Message);
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        await args.DeadLetterMessageAsync(args.Message, "ProcessApplicationError", "Unexpected error in ProcessApplication");
+                        logger.LogError(ex, "Unexpected error in ProcessApplication");
+
+                    }
                     await args.CompleteMessageAsync(args.Message);
                 }
                 break;
@@ -74,7 +90,17 @@ public sealed class ApplicationProcessor(
                         await args.DeadLetterMessageAsync(args.Message, "InvalidBody", "Body was empty or null");
                         return;
                     }
-                    await AcceptAsync(command, args.CancellationToken);
+
+                    try
+                    {
+                        await AcceptAsync(command, args.CancellationToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Unexpected error in AcceptOffer");
+                        await args.DeadLetterMessageAsync(args.Message, "AcceptOffer", "Unexpected error in AcceptOffer");
+
+                    }
 
                     await args.CompleteMessageAsync(args.Message);
                 }
@@ -127,7 +153,10 @@ public sealed class ApplicationProcessor(
             catch (ServiceBusException ex)
             {
                 logger.LogWarning(ex,"Could not cancel offer for Application {ApplicationId}", command.ApplicationId);
+                return;
             }
+            logger.LogInformation("Cancelled expiry {SequenceNumber}", number);
+
         }
     }
     /// <summary>

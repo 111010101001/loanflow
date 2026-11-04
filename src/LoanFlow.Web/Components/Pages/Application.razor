@@ -29,10 +29,7 @@ else
             </tr>
         }
     </table>
-    @if (application.Status == ApplicationStatus.Submitted)
-    {
-        <button @onclick="ApproveAsync">Approve</button>
-    }
+
     @if (application.Status == ApplicationStatus.Approved)
     {
         <button @onclick="AcceptAsync">Accept</button>
