@@ -57,7 +57,16 @@ public sealed class OfferExpiryProcessor(
                         await args.DeadLetterMessageAsync(args.Message, "InvalidBody", "Body was empty or null");
                         return;
                     }
-                    await HandleAsync(command, args.CancellationToken);
+                    try
+                    {
+                        await HandleAsync(command, args.CancellationToken);
+                    }
+                    catch (Exception ex) when (!args.CancellationToken.IsCancellationRequested)
+                    {
+                        logger.LogError(ex, "Unexpected error in ExpireOffer");
+                        await args.DeadLetterMessageAsync(args.Message, ex.GetType().Name, "Unexpected error in ExpireOffer");
+                        return;
+                    }
                     await args.CompleteMessageAsync(args.Message);
                 }
                 break;

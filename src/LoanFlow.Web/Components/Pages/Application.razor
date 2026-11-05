@@ -42,21 +42,7 @@ else
 
     private LoanApplication? application;
     private string statusMessage = "";
-    private async Task ApproveAsync()
-    {
-        var approved = await LoanApplicationRepository.TryTransitionAsync(Id, ApplicationStatus.Submitted, new StatusChange(
-            ApplicationStatus.Approved,
-            TimeProvider.GetUtcNow().UtcDateTime,
-            "manual"
-        ) );
-        if (!approved)
-        {
-            statusMessage = "unable to approve";
-        }
-        application = await LoanApplicationRepository.GetAsync(Id);
 
-
-    }
 
     private async Task AcceptAsync()
     {

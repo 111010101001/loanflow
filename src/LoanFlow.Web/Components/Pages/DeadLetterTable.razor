@@ -2,10 +2,9 @@
 
 
 @inject ServiceBusClient ServiceBusClient
-@inject ICommandSender CommandSender
 
 
-<h3>DeadLetterTable</h3>
+<h3>@QueueName</h3>
 
 @if (Messages is null)
 {
@@ -56,14 +55,14 @@ else
             </tr>
         }
     </table>
-    <button @onclick="RequeueAll"></button>
+    <button @onclick="RequeueAll">Resubmit all</button>
 }
 
 @code {
     [Parameter]
     public string QueueName { get; set; } = "";
 
-    public IReadOnlyList<ServiceBusReceivedMessage>? Messages { get; set; }
+    private IReadOnlyList<ServiceBusReceivedMessage>? Messages { get; set; }
 
 
 

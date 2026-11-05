@@ -2,24 +2,12 @@
 
 @rendermode InteractiveServer
 
-@using Azure.Messaging.ServiceBus
-
-@inject ServiceBusClient ServiceBusClient
 
 <h3>Ops</h3>
 
-<DeadLetterTable QueueNames=QueueNames.OfferExpiry></DeadLetterTable>
+<DeadLetterTable QueueName="@QueueNames.OfferExpiry"></DeadLetterTable>
 
-<DeadLetterTable QueueNames=QueueNames.LoanApplications></DeadLetterTable>
+<DeadLetterTable QueueName="@QueueNames.LoanApplications"></DeadLetterTable>
 
 
 
-@code {
-
-    IReadOnlyList<ServiceBusReceivedMessage> expiryDeadletters;
-    IReadOnlyList<ServiceBusReceivedMessage> applicationsDeadletters;
-    protected override async Task OnInitializedAsync()
-    {
-
-    }
-}
