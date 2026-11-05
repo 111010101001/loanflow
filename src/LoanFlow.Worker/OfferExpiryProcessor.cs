@@ -64,7 +64,7 @@ public sealed class OfferExpiryProcessor(
                     catch (Exception ex) when (!args.CancellationToken.IsCancellationRequested)
                     {
                         logger.LogError(ex, "Unexpected error in ExpireOffer");
-                        await args.DeadLetterMessageAsync(args.Message, ex.GetType().Name, "Unexpected error in ExpireOffer");
+                        await args.DeadLetterMessageAsync(args.Message, ex.GetType().Name, ex.Message);
                         return;
                     }
                     await args.CompleteMessageAsync(args.Message);

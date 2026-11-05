@@ -3,7 +3,6 @@
 @rendermode InteractiveServer
 
 @inject ILoanApplicationRepository LoanApplicationRepository
-@inject TimeProvider TimeProvider
 @inject NavigationManager NavigationManager
 @inject ICommandSender CommandSender
 
@@ -46,6 +45,7 @@ else
 
     private async Task AcceptAsync()
     {
+        statusMessage = "Accept sent";
         await CommandSender.SendAsync(
             QueueNames.LoanApplications,
             new AcceptOffer(Id),

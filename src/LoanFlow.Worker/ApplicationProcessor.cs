@@ -75,8 +75,8 @@ public sealed class ApplicationProcessor(
                     }
                     catch (Exception ex) when (!args.CancellationToken.IsCancellationRequested)
                     {
-                        await args.DeadLetterMessageAsync(args.Message, ex.GetType().Name, "Unexpected error in ProcessApplication");
                         logger.LogError(ex, "Unexpected error in ProcessApplication");
+                        await args.DeadLetterMessageAsync(args.Message, ex.GetType().Name, "Unexpected error in ProcessApplication");
                         return;
                     }
                     await args.CompleteMessageAsync(args.Message);
@@ -98,7 +98,7 @@ public sealed class ApplicationProcessor(
                     catch (Exception ex) when (!args.CancellationToken.IsCancellationRequested)
                     {
                         logger.LogError(ex, "Unexpected error in AcceptOffer");
-                        await args.DeadLetterMessageAsync(args.Message, ex.GetType().Name, "Unexpected error in AcceptOffer");
+                        await args.DeadLetterMessageAsync(args.Message, ex.GetType().Name, ex.Message);
                         return;
                     }
 
