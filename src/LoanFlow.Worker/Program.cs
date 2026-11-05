@@ -21,9 +21,9 @@ if (builder.Environment.IsDevelopment())
 }
 
 builder.Services.AddHostedService<ApplicationProcessor>();
+builder.Services.AddHostedService<OfferExpiryProcessor>();
 builder.Services.AddHostedService<OutboxRelay>();
 
-// TODO(step 2): a second processor for the offer-expiry queue (ExpireOffer commands).
 // TODO(step 3): hosted services for the notifier and audit consumers (RabbitMQ),
 //               or a separate Worker project for them if you want to scale them apart.
 

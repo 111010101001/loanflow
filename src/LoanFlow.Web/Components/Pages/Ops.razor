@@ -1,0 +1,13 @@
+﻿@page "/Ops"
+
+@rendermode InteractiveServer
+
+
+<h3>Ops</h3>
+
+<DeadLetterTable QueueName="@QueueNames.OfferExpiry"></DeadLetterTable>
+
+<DeadLetterTable QueueName="@QueueNames.LoanApplications"></DeadLetterTable>
+
+
+

@@ -15,9 +15,16 @@ public sealed class MongoLoanApplicationRepository(IMongoDatabase database) : IL
     private IMongoCollection<LoanApplication> Applications { get; } =
         database.GetCollection<LoanApplication>(CollectionName);
 
-    public Task InsertAsync(LoanApplication application, CancellationToken cancellationToken = default)
+    public async Task InsertAsync(LoanApplication application, CancellationToken cancellationToken = default)
     {
-        return Applications.InsertOneAsync(application, cancellationToken: cancellationToken);
+        try
+        {
+            await Applications.InsertOneAsync(application, cancellationToken: cancellationToken);
+        }
+        catch (MongoWriteException ex) when (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
+        {
+            // already saved
+        }
     }
 
     public async Task<LoanApplication?> GetAsync(Guid id, CancellationToken cancellationToken = default)
@@ -40,13 +47,20 @@ public sealed class MongoLoanApplicationRepository(IMongoDatabase database) : IL
         Guid id,
         ApplicationStatus expected,
         StatusChange change,
+        LoanOffer? offer = null,
         CancellationToken cancellationToken = default)
     {
         var combinedFilter = Builders<LoanApplication>.Filter.Eq(x => x.Id, id) & Builders<LoanApplication>.Filter.Eq(x => x.Status, expected);
+        var update = Builders<LoanApplication>.Update
+            .Set(x => x.Status, change.Status)
+            .Push(x => x.History, change);
+        if (offer is not null)
+        {
+            update = update.Set(x => x.Offer, offer);
+        }
         var result = await Applications.UpdateOneAsync(
             combinedFilter,
-            Builders<LoanApplication>.Update.Set(x => x.Status, change.Status)
-            .Push(x => x.History, change),
+            update,
             cancellationToken: cancellationToken
         );
         return result.ModifiedCount == 1;

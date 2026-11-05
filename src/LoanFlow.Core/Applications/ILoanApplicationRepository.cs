@@ -6,6 +6,9 @@ namespace LoanFlow.Core.Applications;
 /// </summary>
 public interface ILoanApplicationRepository
 {
+    /// <summary>
+    /// Inserts the loan application. If one with the same Id already exists, does nothing, so retrying with the same id is safe.
+    /// </summary>
     Task InsertAsync(LoanApplication application, CancellationToken cancellationToken = default);
 
     Task<LoanApplication?> GetAsync(Guid id, CancellationToken cancellationToken = default);
@@ -24,5 +27,6 @@ public interface ILoanApplicationRepository
         Guid id,
         ApplicationStatus expected,
         StatusChange change,
+        LoanOffer? offer = null,
         CancellationToken cancellationToken = default);
 }

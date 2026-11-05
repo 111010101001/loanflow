@@ -1,0 +1,100 @@
+﻿@using Azure.Messaging.ServiceBus
+
+
+@inject ServiceBusClient ServiceBusClient
+
+
+<h3>@QueueName</h3>
+
+@if (Messages is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>
+                    MessageId
+                </th>
+                <th>
+                    Subject
+                </th>
+                <th>
+                    SessionId
+                </th>
+                <th>
+                    EnqueuedTime
+                </th>
+                <th>
+                    DeliveryCount
+                </th>
+                <th>
+                    DeadLetterReason
+                </th>
+                <th>
+                    DeadLetterErrorDescription
+                </th>
+                <th>
+                    Body
+                </th>
+            </tr>
+        </thead>
+        @foreach (ServiceBusReceivedMessage msg in Messages)
+        {
+            <tr>
+                <td>@msg.MessageId</td>
+                <td>@msg.Subject</td>
+                <td>@msg.SessionId</td>
+                <td>@msg.EnqueuedTime</td>
+                <td>@msg.DeliveryCount</td>
+                <td>@msg.DeadLetterReason</td>
+                <td>@msg.DeadLetterErrorDescription</td>
+                <td>@msg.Body.ToString()</td>
+            </tr>
+        }
+    </table>
+    <button @onclick="RequeueAll">Resubmit all</button>
+}
+
+@code {
+    [Parameter]
+    public string QueueName { get; set; } = "";
+
+    private IReadOnlyList<ServiceBusReceivedMessage>? Messages { get; set; }
+
+
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        await using var receiver = ServiceBusClient.CreateReceiver(QueueName,
+            new ServiceBusReceiverOptions { SubQueue = SubQueue.DeadLetter });
+        Messages = await receiver.PeekMessagesAsync(50);
+    }
+
+    public async Task RequeueAll()
+    {
+        await using (ServiceBusReceiver processor = ServiceBusClient.CreateReceiver(QueueName, new ServiceBusReceiverOptions
+        {
+            SubQueue = SubQueue.DeadLetter
+        }))
+        {
+            var msgs = await processor.ReceiveMessagesAsync(maxMessages: 50, maxWaitTime: TimeSpan.FromSeconds(2));
+            await using (var sender = ServiceBusClient.CreateSender(QueueName))
+            {
+                foreach (var msg in msgs)
+                {
+                    var cpy = new ServiceBusMessage(msg);
+                    cpy.MessageId = Guid.NewGuid().ToString();
+                    await sender.SendMessageAsync(cpy);
+                    await processor.CompleteMessageAsync(msg);
+
+                }
+            }
+        }
+        await LoadAsync();
+    }
+}

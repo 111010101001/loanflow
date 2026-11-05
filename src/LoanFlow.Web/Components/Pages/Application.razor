@@ -3,8 +3,9 @@
 @rendermode InteractiveServer
 
 @inject ILoanApplicationRepository LoanApplicationRepository
-@inject TimeProvider TimeProvider
 @inject NavigationManager NavigationManager
+@inject ICommandSender CommandSender
+
 
 @if (application is null)
 {
@@ -27,11 +28,11 @@ else
             </tr>
         }
     </table>
-    @if (application.Status == ApplicationStatus.Submitted)
-    {
-        <button @onclick="ApproveAsync">Approve</button>
-    }
 
+    @if (application.Status == ApplicationStatus.Approved)
+    {
+        <button @onclick="AcceptAsync">Accept</button>
+    }
     <h2>@statusMessage</h2>
 }
 @code {
@@ -40,20 +41,16 @@ else
 
     private LoanApplication? application;
     private string statusMessage = "";
-    private async Task ApproveAsync()
+
+
+    private async Task AcceptAsync()
     {
-        var approved = await LoanApplicationRepository.TryTransitionAsync(Id, ApplicationStatus.Submitted, new StatusChange(
-            ApplicationStatus.Approved,
-            TimeProvider.GetUtcNow().UtcDateTime,
-            "manual"
-        ) );
-        if (!approved)
-        {
-            statusMessage = "unable to approve";
-        }
-        application = await LoanApplicationRepository.GetAsync(Id);
-
-
+        statusMessage = "Accept sent";
+        await CommandSender.SendAsync(
+            QueueNames.LoanApplications,
+            new AcceptOffer(Id),
+            Id.ToString(),
+            $"accept-{Id.ToString()}");
     }
 
     protected override async Task OnParametersSetAsync()
