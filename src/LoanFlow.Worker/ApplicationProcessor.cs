@@ -4,6 +4,7 @@ using LoanFlow.Core.Credit;
 using LoanFlow.Core.Ledger;
 using LoanFlow.Core.Messaging;
 using Microsoft.Extensions.Options;
+using static System.Net.Mime.MediaTypeNames;
 
 
 namespace LoanFlow.Worker;
@@ -17,6 +18,8 @@ public sealed class ApplicationProcessor(
     ServiceBusClient client,
     IOptions<CreditPolicyOptions> options,
     TimeProvider timeProvider,
+    IEventPublisher eventPublisher,
+    OfferExpiryProcessor offerExpiryProcessor,
     ILogger<ApplicationProcessor> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -212,7 +215,21 @@ public sealed class ApplicationProcessor(
                 await sender.CancelScheduledAsync(QueueNames.OfferExpiry, number, cancellationToken);
             return;
         }
-        
+
+        var routingKey = decision.Outcome switch
+        {
+            ApplicationStatus.Approved => RoutingKeys.ApplicationApproved,
+            ApplicationStatus.Rejected => RoutingKeys.ApplicationRejected,
+            ApplicationStatus.OfferAccepted => RoutingKeys.OfferAccepted,
+            ApplicationStatus.OfferExpired => RoutingKeys.OfferExpired,
+            ApplicationStatus.ManualReview => RoutingKeys.ApplicationManualReview,
+            _ => throw new InvalidOperationException($"Unexpected outcome {decision.Outcome}")
+        };
+
+        await eventPublisher.PublishAsync(
+            routingKey,
+            new ApplicationDecided(application.Id, decision.Outcome, decision.Reason, now),
+            cancellationToken);
         // TODO(step 3): publish ApplicationDecided with IEventPublisher.
         // TODO(step 4): handling AcceptOffer. Get LedgerDbContext from the same scope, then in ONE
         // SaveChangesAsync add Loan.Open(...) and OutboxMessage.For(RoutingKeys.LoanOpened, new LoanOpened(...), now).

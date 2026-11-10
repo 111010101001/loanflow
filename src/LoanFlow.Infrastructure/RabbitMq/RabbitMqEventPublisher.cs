@@ -1,4 +1,8 @@
+using System.Text.Json;
+using System.Threading.Channels;
 using LoanFlow.Core.Messaging;
+using Microsoft.Extensions.Options;
+using RabbitMQ.Client;
 
 namespace LoanFlow.Infrastructure.RabbitMq;
 
@@ -6,23 +10,48 @@ namespace LoanFlow.Infrastructure.RabbitMq;
 /// RabbitMQ implementation of <see cref="IEventPublisher"/>. Registered as a singleton.
 ///
 /// TODO(step 3):
-///  - Take RabbitMqConnection and IOptions&lt;RabbitMqOptions&gt; in the constructor.
-///  - Get the connection, create a channel (connection.CreateChannelAsync). A publisher can
-///    keep one channel for its lifetime, but don't publish on it from several threads at
-///    once: guard it with a SemaphoreSlim, or use one channel per concurrent caller.
-///  - Declare the exchange once: ExchangeDeclareAsync(exchange, ExchangeType.Topic, durable: true).
-///    Declaring is idempotent, so doing it at startup from both publisher and consumers is fine.
-///  - Body: JsonSerializer.SerializeToUtf8Bytes(@event).
-///  - Properties: new BasicProperties { ContentType = "application/json", Persistent = true,
-///    MessageId = Guid.NewGuid().ToString(), Type = typeof(TEvent).Name }
-///  - BasicPublishAsync(exchange, routingKey, mandatory: false, basicProperties: props, body: body).
 ///  - Stretch: publisher confirms, by creating the channel with
 ///    new CreateChannelOptions(publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true).
 ///    Then BasicPublishAsync only completes once the broker has the message.
 /// </summary>
-public sealed class RabbitMqEventPublisher : IEventPublisher
+public sealed class RabbitMqEventPublisher(RabbitMqConnection connection, IOptions<RabbitMqOptions> options) : IEventPublisher
 {
-    public Task PublishAsync<TEvent>(string routingKey, TEvent @event, CancellationToken cancellationToken = default)
-        where TEvent : notnull =>
-        throw new NotImplementedException("Step 3: publish the event to the loan.events topic exchange.");
+    private IChannel? channel;
+    private readonly SemaphoreSlim semaphore = new(1, 1);
+    public async Task PublishAsync<TEvent>(string routingKey, TEvent @event, CancellationToken cancellationToken = default)
+        where TEvent : notnull
+    {
+        await semaphore.WaitAsync(cancellationToken);
+        try
+        {
+            if (channel is null || channel.IsClosed)
+            {
+                var con = await connection.GetAsync(cancellationToken);
+                var newChannel = await con.CreateChannelAsync(cancellationToken:cancellationToken);
+                await newChannel.ExchangeDeclareAsync(options.Value.Exchange, ExchangeType.Topic, durable: true, cancellationToken: cancellationToken);
+                channel = newChannel;
+            }
+            var props = new BasicProperties
+            {
+                ContentType = "application/json",
+                Persistent = true,
+                MessageId = Guid.NewGuid().ToString(),
+                Type = typeof(TEvent).Name
+            };
+            await channel.BasicPublishAsync(options.Value.Exchange, routingKey, mandatory: false, basicProperties: props, body: JsonSerializer.SerializeToUtf8Bytes(@event), cancellationToken: cancellationToken);
+            
+        }
+        finally 
+        {
+            semaphore.Release();
+        }
+    }
+    public async Task DisposeAsync()
+    {
+        if (channel is not null)
+        {
+            await channel.CloseAsync();
+
+        }
+    }
 }
