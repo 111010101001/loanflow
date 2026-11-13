@@ -7,12 +7,13 @@ using LoanFlow.Core.Messaging;
 namespace LoanFlow.Worker;
 
 /// <summary>
-/// Consumes commands from the session-enabled "loan-applications" queue.
+/// Consumes commands from the offer-expiry queue.
 /// </summary>
 public sealed class OfferExpiryProcessor(
     IServiceScopeFactory scopeFactory,
     ServiceBusClient client,
     TimeProvider timeProvider,
+    IEventPublisher eventPublisher,
     ILogger<OfferExpiryProcessor> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -109,6 +110,13 @@ public sealed class OfferExpiryProcessor(
             now,
             Reason: "Expired"),
             application.Offer,
+            cancellationToken);
+
+
+        var routingKey = RoutingKeys.OfferExpired;
+        await eventPublisher.PublishAsync(
+            routingKey,
+            new ApplicationDecided(application.Id, ApplicationStatus.OfferExpired, "Expired", now),
             cancellationToken);
 
         if (!result)

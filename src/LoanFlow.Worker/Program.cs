@@ -23,7 +23,7 @@ if (builder.Environment.IsDevelopment())
 builder.Services.AddHostedService<ApplicationProcessor>();
 builder.Services.AddHostedService<OfferExpiryProcessor>();
 builder.Services.AddHostedService<OutboxRelay>();
-
+builder.Services.AddHostedService<AuditConsumer>();
 // TODO(step 3): hosted services for the notifier and audit consumers (RabbitMQ),
 //               or a separate Worker project for them if you want to scale them apart.
 

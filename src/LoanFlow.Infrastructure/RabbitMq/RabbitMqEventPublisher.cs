@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Threading.Channels;
 using LoanFlow.Core.Messaging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
@@ -14,7 +13,7 @@ namespace LoanFlow.Infrastructure.RabbitMq;
 ///    new CreateChannelOptions(publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true).
 ///    Then BasicPublishAsync only completes once the broker has the message.
 /// </summary>
-public sealed class RabbitMqEventPublisher(RabbitMqConnection connection, IOptions<RabbitMqOptions> options) : IEventPublisher
+public sealed class RabbitMqEventPublisher(RabbitMqConnection connection, IOptions<RabbitMqOptions> options) : IEventPublisher, IAsyncDisposable
 {
     private IChannel? channel;
     private readonly SemaphoreSlim semaphore = new(1, 1);
@@ -46,7 +45,8 @@ public sealed class RabbitMqEventPublisher(RabbitMqConnection connection, IOptio
             semaphore.Release();
         }
     }
-    public async Task DisposeAsync()
+
+    public async ValueTask DisposeAsync()
     {
         if (channel is not null)
         {
