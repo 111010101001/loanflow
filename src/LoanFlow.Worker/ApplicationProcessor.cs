@@ -149,20 +149,19 @@ public sealed class ApplicationProcessor(
         {
             try
             {
-                var routingKey = RoutingKeys.OfferAccepted;
-                await eventPublisher.PublishAsync(
-                    routingKey,
-                    new ApplicationDecided(application.Id, ApplicationStatus.OfferAccepted, "Offer accepted by user", now),
-                    cancellationToken);
-
                 await sender.CancelScheduledAsync(QueueNames.OfferExpiry, number, cancellationToken);
+                logger.LogInformation("Cancelled expiry {SequenceNumber}", number);
             }
             catch (ServiceBusException ex)
             {
                 logger.LogWarning(ex,"Could not cancel offer for Application {ApplicationId}", command.ApplicationId);
                 return;
             }
-            logger.LogInformation("Cancelled expiry {SequenceNumber}", number);
+            var routingKey = RoutingKeys.OfferAccepted;
+            await eventPublisher.PublishAsync(
+                routingKey,
+                new ApplicationDecided(application.Id, ApplicationStatus.OfferAccepted, "Offer accepted by user", now),
+                cancellationToken);
 
         }
     }

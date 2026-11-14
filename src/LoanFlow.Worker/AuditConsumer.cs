@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Text;
 using LoanFlow.Core.Messaging;
 using LoanFlow.Infrastructure.RabbitMq;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace LoanFlow.Worker;
 

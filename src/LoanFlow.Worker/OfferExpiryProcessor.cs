@@ -114,16 +114,16 @@ public sealed class OfferExpiryProcessor(
 
 
         var routingKey = RoutingKeys.OfferExpired;
-        await eventPublisher.PublishAsync(
-            routingKey,
-            new ApplicationDecided(application.Id, ApplicationStatus.OfferExpired, "Expired", now),
-            cancellationToken);
 
         if (!result)
         {
             logger.LogWarning("Application {ApplicationId} already accepted; nothing to do", command.ApplicationId);
             return;
         }
+        await eventPublisher.PublishAsync(
+            routingKey,
+            new OfferExpired(application.Id, now),
+            cancellationToken);
 
     }
 }
